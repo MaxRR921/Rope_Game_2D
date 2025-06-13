@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -8,63 +9,97 @@ public class PlayerMovement2D : MonoBehaviour
     [SerializeField]
     private float moveSpeed = 5f;
 
+    [Header("Dash Settings")]
+    [SerializeField]
+    private float dashSpeed = 12f;
+    [SerializeField]
+    private float dashDuration = 0.2f;
+    [SerializeField, Range(0f, 1f)]
+    private float dashControlFactor = 0.5f;
+
     private Vector2 moveInput = Vector2.zero;
+    private Vector2 dashDirection = Vector2.up;
     private Rigidbody2D rb;
+    private bool isDashing = false;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
     }
 
-    // Sent via PlayerInput (Send Messages) when "Move" triggers
+    /// <summary>
+    /// Called when "Move" action triggers.
+    /// </summary>
     public void OnMove(InputValue value)
     {
-        // Read the Vector2 input (WASD, arrow keys or stick)
         moveInput = value.Get<Vector2>();
+    }
+
+    /// <summary>
+    /// Called when "Dash" action triggers.
+    /// </summary>
+    public void OnDash(InputValue value)
+    {
+        if (value.isPressed && !isDashing)
+            StartCoroutine(PerformDash());
+    }
+
+    private IEnumerator PerformDash()
+    {
+        isDashing = true;
+        // Capture initial dash direction or default up
+        dashDirection = moveInput.sqrMagnitude > 0f ? moveInput.normalized : Vector2.up;
+
+        float timer = 0f;
+        while (timer < dashDuration)
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+        isDashing = false;
     }
 
     private void FixedUpdate()
     {
-        rb.velocity = moveInput * moveSpeed;
+        if (isDashing)
+        {
+            // Base dash + limited mid-dash control
+            Vector2 controlVel = moveInput * moveSpeed * dashControlFactor;
+            rb.velocity = dashDirection * dashSpeed + controlVel;
+        }
+        else
+        {
+            rb.velocity = moveInput * moveSpeed;
+        }
     }
 }
 
 /*
 Setup Instructions:
-
 1. Input System Package:
    - Ensure "Input System" is installed via Package Manager.
 
 2. Input Actions Asset:
-   - Create (or open) your Input Actions asset, e.g., "PlayerControls".
-   - Add an Action Map named "Gameplay".
-   - Add a new Action "Move", set Action Type to "Value" and Control Type to "Vector2".
+   - Open "PlayerControls" Input Actions asset.
+   - In your Action Map (e.g., "Movement"), ensure you have:
+     • "Move" action (Value, Vector2) bound to WASD/arrow keys and left stick.
+     • "Dash" action (Button) bound to <Keyboard>/space and <Gamepad>/buttonSouth (A).
 
-3. Bindings for "Move":
-   a. Add a "2D Vector Composite" binding:
-      • Up: path "<Keyboard>/w"
-      • Down: path "<Keyboard>/s"
-      • Left: path "<Keyboard>/a"
-      • Right: path "<Keyboard>/d"
-   b. (Optional) Add arrow keys as separate bindings:
-      • "<Keyboard>/upArrow", 
-      • "<Keyboard>/downArrow",
-      • "<Keyboard>/leftArrow",
-      • "<Keyboard>/rightArrow"
-   c. Add Gamepad stick binding: "<Gamepad>/leftStick"
+3. PlayerInput Component:
+   - On your Player GameObject:
+     • Assign the "PlayerControls" asset.
+     • Set Behavior to "Send Messages".
+     • Default Map to match your Action Map name.
+     • Verify "OnMove" and "OnDash" appear under the corresponding section.
 
-4. Player GameObject Setup:
-   - Attach a Rigidbody2D component.
-   - Add a PlayerInput component:
-       • Assign the "PlayerControls" asset.
-       • Set Behavior to "Send Messages".
-       • Set Default Map to "Gameplay".
-   - Attach this PlayerMovement2D.cs script.
+4. Tweak in Inspector:
+   - Move Speed: normal movement.
+   - Dash Speed: dash velocity.
+   - Dash Duration: how long the dash lasts.
+   - Dash Control Factor: fraction of normal movement you retain mid-dash (0 = no control, 1 = full control).
 
-5. Tweak:
-   - Adjust Move Speed in the Inspector.
-
-6. Test:
-   - Enter Play Mode; WASD/arrow keys or gamepad left stick should move the player.
+5. Test:
+   - Play and use WASD/arrow keys to move.
+   - Press Space (or Gamepad A) to dash; while dashing you can slightly adjust direction based on input.
 */
 

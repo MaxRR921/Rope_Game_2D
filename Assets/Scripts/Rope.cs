@@ -190,6 +190,7 @@ public class Rope : MonoBehaviour
                         points[i].setObjectPinnedTo(null);
                         points[i].Fix(false);
                         unpinCount++;
+                        points[i].setPreviousPosition(points[i].getPosition());
                         return;
                     }
                 }
@@ -324,6 +325,7 @@ public class Rope : MonoBehaviour
                         {
                             p.setCollideCount(p.getCollideCount() + 1);
                         }
+
 
                         // adjust friction
                         float newFric = p.getFriction() > 0.4f
