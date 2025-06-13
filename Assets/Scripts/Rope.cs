@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+using UnityEditor.U2D.Aseprite;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -47,13 +49,25 @@ public class Rope : MonoBehaviour
     [SerializeField]
     private List<PinnableObject> pinnableObjects = new List<PinnableObject>();
 
+    [SerializeField]
+    bool loop = false;
+
     // When spawning a child, skip its InstantiateSections call
+    [SerializeField]
     private bool skipInstantiate = false;
+
+    [SerializeField]
+    private GameObject entity;
+
+    private PinnableObject lastPinnedClip;
+
+    [SerializeField]
+    int unpinCount = 0;
 
     void Start()
     {
-
-
+        
+        lastPinnedClip = null;
 
         // Initialize or grab existing LineRenderer
         lineRenderer = lineRenderer ?? gameObject.AddComponent<LineRenderer>();
@@ -82,6 +96,106 @@ public class Rope : MonoBehaviour
 
         UpdateLineRenderer();
         Debug.Log("HELLO!!");
+
+        if (loop)
+        {
+            loopRope();
+        }
+
+
+    }
+
+
+
+    void loopRope()
+    {
+        // 1) Find your two clips once
+        PinnableObject hipClip1 = pinnableObjects
+            .FirstOrDefault(o => o.getGameObject.name == "hipClip1");
+        PinnableObject hipClip2 = pinnableObjects
+            .FirstOrDefault(o => o.getGameObject.name == "hipClip2");
+
+        if (hipClip1 == null || hipClip2 == null)
+        {
+            Debug.LogWarning("hipClip1 or hipClip2 not found!");
+            return;
+        }
+
+        // 2) Pin points by i % 3
+        int pinCount = 0;
+        for (int i = 0; i < points.Count; i++)
+        {
+            if (i % 3 == 0)
+            {
+                points[i].Fix(true);
+                var clip = (pinCount % 2 == 0) ? hipClip1 : hipClip2;
+                points[i].setObjectPinnedTo(clip);
+                pinCount++;
+            }
+        }
+    }
+
+    public void PinToClip(GameObject clipObj)
+    {
+        // Get the PinnableObject component on the clip
+        PinnableObject newPin = new PinnableObject(0, clipObj);
+
+
+        // Search backwards for the last point pinned to hipclip1/2
+        for (int i = points.Count - 1; i >= 0; i--)
+        {
+            PinnableObject currentPin = points[i].getObjectPinnedTo;
+            if (currentPin != null &&
+                (currentPin.getGameObject.name == "hipClip1" ||
+                 currentPin.getGameObject.name == "hipClip2"))
+            {
+                points[i].setObjectPinnedTo(newPin);
+                points[i].Fix(true);
+                unpinCount = 0;
+                lastPinnedClip = newPin;
+                Debug.Log("LAST PINNED CLIP IS: " + lastPinnedClip.getGameObject.name);
+                Debug.Log($"Pinned point {points[i].getPid()} to new clip {clipObj.name}");
+                return;
+            }
+        }
+
+        Debug.LogWarning("No hip-clipped point found to re-pin.");
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        // When player (or rope) enters a clip trigger, re-pin the last hip-clipped point
+        if (other.CompareTag("clip"))
+        {
+            PinToClip(other.gameObject);
+        }
+    }
+
+
+    private void unravelRope()
+    {
+        if (lastPinnedClip != null)
+        {
+            Debug.Log("NOT NULL" + lastPinnedClip.getGameObject.name);
+            if (Vector2.Distance(entity.transform.position, lastPinnedClip.getGameObject.transform.position) > (1.5 * unpinCount))
+            {
+                unpinCount++;
+                for (int i = points.Count - 1; i >= 0; i--)
+                {
+                    PinnableObject currentPin = points[i].getObjectPinnedTo;
+                    if (currentPin != null &&
+                        (currentPin.getGameObject.name == "hipClip1" ||
+                         currentPin.getGameObject.name == "hipClip2"))
+                    {
+                        points[i].setObjectPinnedTo(null);
+                        points[i].Fix(false);
+                        unpinCount++;
+                        return;
+                    }
+                }
+
+            }
+        }
     }
 
     void Update()
@@ -94,6 +208,7 @@ public class Rope : MonoBehaviour
     {
         // Sync transforms so Collider2D matches moved Transforms
         Physics2D.SyncTransforms();
+        unravelRope();
         Simulate();
     }
 
@@ -173,6 +288,8 @@ public class Rope : MonoBehaviour
         public int getId() => id;
         public GameObject getGameObject => m_gameObject;
     }
+
+
 
     private void Simulate()
     {
