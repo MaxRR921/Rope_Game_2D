@@ -174,10 +174,75 @@ public class Rope : MonoBehaviour
 
     private void unravelRope()
     {
+        if (lastPinnedClip == null) return;
+
+        // find the last real hip‐clip index
+        int idxToCountFrom = -1;
+        for (int i = points.Count - 1; i >= 0; i--)
+        {
+            var pin = points[i].getObjectPinnedTo;
+            if (pin != null)
+            {
+                string nm = pin.getGameObject.name;
+                if (nm == "hipClip1" || nm == "hipClip2")
+                {
+                    idxToCountFrom = i;
+                    Debug.Log("IDX to count from" + idxToCountFrom);
+                    break;
+                }
+            }
+        }
+
+        if (idxToCountFrom < 0) return;
+
+        // sum the actual rope‐path length from that pin to the player
+        float ropeDistance = 0f;
+        // stop at points.Count-1 so points[i+1] is always valid
+        for (int j = idxToCountFrom; j < points.Count - 1; j++)
+        {
+            ropeDistance = Vector2.Distance(
+                points[j].getPosition(),
+                points[j + 1].getPosition()
+
+            );
+            Debug.Log("ROPE DISTANCE: " + ropeDistance +"points distance" +  Vector2.Distance(points[j].getPosition(), points[j + 1].getPosition()));
+
+            if (ropeDistance > .7f)
+            {
+                // unpin the next hip‐clip
+                for (int i = points.Count - 1; i >= 0; i--)
+                {
+                    var pin = points[i].getObjectPinnedTo;
+                    if (pin != null)
+                    {
+                        string nm = pin.getGameObject.name;
+                        if (nm == "hipClip1" || nm == "hipClip2")
+                        {
+                            points[i].setObjectPinnedTo(null);
+                            points[i].Fix(false);
+                            points[i].setPreviousPosition(points[i].getPosition());
+                            unpinCount++;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        Debug.Log("FINAL  DISTANCE: " + ropeDistance);
+
+        // only unpin once the *path* has stretched past threshold
+        Debug.Log("2 * unpincount: " + 3f * unpinCount);
+  
+    }
+
+
+
+    private void ravelRope()
+    {
         if (lastPinnedClip != null)
         {
             Debug.Log("NOT NULL" + lastPinnedClip.getGameObject.name);
-            if (Vector2.Distance(entity.transform.position, lastPinnedClip.getGameObject.transform.position) > (1.5 * unpinCount))
+            if (Vector2.Distance(entity.transform.position, lastPinnedClip.getGameObject.transform.position) < (1.5 * unpinCount))
             {
                 unpinCount++;
                 for (int i = points.Count - 1; i >= 0; i--)
@@ -209,6 +274,7 @@ public class Rope : MonoBehaviour
     {
         // Sync transforms so Collider2D matches moved Transforms
         Physics2D.SyncTransforms();
+        ravelRope();
         unravelRope();
         Simulate();
     }
@@ -442,6 +508,7 @@ public class Rope : MonoBehaviour
     private void InstantiateSections(int numPoints)
     {
         Vector2 distance_y = new Vector2(0, length / numPoints);
+        Debug.Log("DISTANCE Y" + distance_y);
         Point last_point = null;
 
         for (int i = 0; i < numPoints; i++)
