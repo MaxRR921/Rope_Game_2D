@@ -1,0 +1,77 @@
+﻿// RopeCompute.compute
+#pragma kernel Integrate
+#pragma kernel Constrain
+
+struct Point
+{
+    float2 position;
+    float2 prevPosition;
+    float friction;
+    int isFixed;
+};
+
+struct Constraint
+{
+    int idxA;
+    int idxB;
+    float restLength;
+};
+
+
+
+RWStructuredBuffer<Point> points;
+StructuredBuffer<Constraint> constraints;
+RWStructuredBuffer<float> debug;
+StructuredBuffer<float2> pinPositions;
+
+float deltaTime;
+float2 gravity;
+float airFriction;
+float2 rootObj;
+uint numPoints;
+uint numConstraints;
+float stiffness;
+
+[numthreads(64, 1, 1)]
+void Integrate(uint id : SV_DispatchThreadID)
+{
+    if (id >= numPoints)
+        return;
+    Point p = points[id];
+    if (p.isFixed == 0)
+    {
+        float2 vel = (p.position - p.prevPosition) * p.friction * airFriction;
+        float2 next = p.position + vel + gravity * deltaTime * deltaTime;
+        p.prevPosition = p.position;
+        p.position = next;
+        points[id] = p;
+    }
+    else
+    {
+        p.position = pinPositions[id];
+        p.prevPosition = pinPositions[id];
+        points[id] = p;
+    }
+}
+
+[numthreads(64, 1, 1)]
+void Constrain(uint id : SV_DispatchThreadID)
+{
+    if (id >= numConstraints)
+        return;
+    Constraint c = constraints[id];
+    float d = debug[id];
+    Point A = points[c.idxA];
+    Point B = points[c.idxB];
+    float2 delta = B.position - A.position;
+    float dist = length(delta);
+    float2 dir = delta / (dist + 1e-6);
+    float diff = ((dist - c.restLength) / dist) * 0.5;
+    if (A.isFixed == 0)
+        A.position += (delta * diff) * stiffness;
+    if (B.isFixed == 0)
+        B.position -= (delta * diff) * stiffness;
+    points[c.idxA] = A;
+    points[c.idxB] = B;
+}
+

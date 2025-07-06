@@ -2,6 +2,7 @@
 using System.Linq;
 using UnityEditor.U2D.Aseprite;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
 
 public class Rope : MonoBehaviour
@@ -64,6 +65,10 @@ public class Rope : MonoBehaviour
     [SerializeField]
     int unpinCount = 0;
 
+
+
+
+
     void Start()
     {
         
@@ -104,7 +109,6 @@ public class Rope : MonoBehaviour
 
 
     }
-
 
 
     void loopRope()
@@ -274,7 +278,6 @@ public class Rope : MonoBehaviour
     {
         // Sync transforms so Collider2D matches moved Transforms
         Physics2D.SyncTransforms();
-        ravelRope();
         unravelRope();
         Simulate();
     }
