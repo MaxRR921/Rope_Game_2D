@@ -31,6 +31,7 @@ float2 rootObj;
 uint numPoints;
 uint numConstraints;
 float stiffness;
+int evenPass;
 
 [numthreads(64, 1, 1)]
 void Integrate(uint id : SV_DispatchThreadID)
@@ -57,10 +58,25 @@ void Integrate(uint id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void Constrain(uint id : SV_DispatchThreadID)
 {
-    if (id >= numConstraints)
+    int cid = 0;
+
+    if (evenPass == 0)
+    {
+        cid = id * 2;
+    }
+    if (evenPass == 1)
+    {
+        cid = (id * 2) + 1;
+
+    }
+    if (cid >= numConstraints)
         return;
-    Constraint c = constraints[id];
-    float d = debug[id];
+
+    if (cid + 1 >= numPoints)
+        return;
+    
+    Constraint c = constraints[cid];
+    float d = debug[cid];
     Point A = points[c.idxA];
     Point B = points[c.idxB];
     float2 delta = B.position - A.position;
@@ -68,10 +84,13 @@ void Constrain(uint id : SV_DispatchThreadID)
     float2 dir = delta / (dist + 1e-6);
     float diff = ((dist - c.restLength) / dist) * 0.5;
     if (A.isFixed == 0)
-        A.position += (delta * diff) * stiffness;
+        A.position += (delta * diff);
     if (B.isFixed == 0)
-        B.position -= (delta * diff) * stiffness;
+        B.position -= (delta * diff);
     points[c.idxA] = A;
     points[c.idxB] = B;
 }
+
+
+
 

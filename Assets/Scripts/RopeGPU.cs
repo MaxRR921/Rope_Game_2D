@@ -97,7 +97,7 @@ public class RopeGPU : MonoBehaviour
         compute.SetBuffer(constrainK, "debug", debugBuffer);
         compute.SetInt("numPoints", numPoints);
         compute.SetInt("numConstraints", numConstraints);
-        compute.SetFloat("stiffness", 0.01f);
+        compute.SetFloat("stiffness", 0.9999f);
 
 
 
@@ -128,7 +128,7 @@ public class RopeGPU : MonoBehaviour
 
         for (int i = 0; i < pinnedObjs.Count; i++)
         {
-            pinPositions[i] =  new Vector2(pinnedObjs[i].transform.position.x, pinnedObjs[i].transform.position.y);
+            pinPositions[i] = new Vector2(pinnedObjs[i].transform.position.x, pinnedObjs[i].transform.position.y);
 
         }
         pinBuffer.SetData(pinPositions);
@@ -146,36 +146,39 @@ public class RopeGPU : MonoBehaviour
 
         int pg = Mathf.CeilToInt(numPoints / 64f);
         int cg = Mathf.CeilToInt(numConstraints / 64f);
-        int substeps = 4;
-        float subDt = Time.fixedDeltaTime / substeps;
+        float dt = Time.fixedDeltaTime * .5f;
 
-        for (int i = 0; i < substeps; i++)
+        compute.SetFloat("deltaTime", dt);
+        compute.Dispatch(integrateK, pg, 1, 1);
+
+        for (int j = 0; j < constraintPasses; j++)
         {
-            compute.SetFloat("deltaTime", subDt);
-            compute.Dispatch(integrateK, pg, 1, 1);
-            for (int j = 0; j < constraintPasses; j++)
-                compute.Dispatch(constrainK, cg, 1, 1);
+            compute.SetInt("evenPass", 0);
+            compute.Dispatch(constrainK, cg, 1, 1);
+
+
+            compute.SetInt("evenPass", 1);
+            compute.Dispatch(constrainK, cg, 1, 1);
+
+            // pointBuffer.GetData(points);
+            //  foreach (Point p in points){
+            //     Debug.Log(p.position.x + " + " +  p.position.y);
+
+            // }
+
+            // constraintBuffer.GetData(constraints);
+
+            //        foreach (Constraint c in constraints) {
+            //           Debug.Log("DISTANCE: " +  (points[c.idxA].position - points[c.idxB].position)); 
+
+
+            //      }
+
+
+            frameCount++;
+
         }
-
-        pointBuffer.GetData(points);
-        foreach (Point p in points){
-            Debug.Log(p.position.x + " + " +  p.position.y);
-
-        }
-
-        constraintBuffer.GetData(constraints);
-
-        foreach (Constraint c in constraints) {
-            Debug.Log("DISTANCE: " +  (points[c.idxA].position - points[c.idxB].position)); 
-
-
-        }
-
-
-        frameCount++;
-
     }
-
     void OnRenderObject()
     {
         ropeMaterial.SetBuffer("points", pointBuffer);
