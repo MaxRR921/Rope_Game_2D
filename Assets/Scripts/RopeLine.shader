@@ -2,74 +2,93 @@
 {
     Properties
     {
-        _Color("Line Color", Color) = (1,1,1,1)
+        _MainTex ("Albedo", 2D) = "white" {}
+        _Color   ("Tint"  , Color) = (1,1,1,1)
+        _Thickness ("World-space radius", Float) = 0.02
     }
     SubShader
     {
-        Tags
-        {
-            "RenderPipeline"="UniversalPipeline"
-            "Queue"="Transparent"
-            "RenderType"="Transparent"
-        }
+        Tags{ "RenderPipeline"="UniversalPipeline"
+              "RenderType"="Transparent" "Queue"="Transparent" }
         Pass
         {
-            Name "SRPDefaultUnlit"
-            Tags { "LightMode"="SRPDefaultUnlit" }
+            Name "RopeLineURP_2D"
+            Tags{ "LightMode"="Universal2D" }
 
-            ZTest Always
+            Cull Off     // view-oriented ribbons
             ZWrite Off
-            Cull Off
             Blend SrcAlpha OneMinusSrcAlpha
 
             HLSLPROGRAM
-            #pragma target 5.0
-            #pragma vertex vert
+            #pragma target 4.5               // StructuredBuffer + instancing
+            #pragma vertex   vert
             #pragma fragment frag
-
+            #pragma multi_compile_fog
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            // exactly matches your C# Point struct
-            struct Point
-            {
-                float2 position;
-                float2 prevPosition;
-                float  friction;
-                int    isFixed;
+            // ── data coming from C# ────────────────────────────────────────────
+            struct Point      { float2 pos; float2 prev; float  fric; int fix; };
+            struct Constraint { int    iA;  int    iB;  float  rest; };
+
+            StructuredBuffer<Point>      _Points;
+            StructuredBuffer<Constraint> _Constraints;
+
+            // ── per-material params ───────────────────────────────────────────
+            CBUFFER_START(UnityPerMaterial)
+                float4 _Color;
+                float  _Thickness;
+            CBUFFER_END
+            TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
+
+            // ── vertex inputs / outputs ───────────────────────────────────────
+            struct Attributes { uint vertexID  : SV_VertexID;
+                                uint instanceID: SV_InstanceID; };
+            struct Varyings   { float4 posCS   : SV_POSITION;
+                                float2 uv      : TEXCOORD0;
+                                half4  color   : COLOR;};
+
+            // six vertices per quad → which corner?
+            static const float2 corner[6] = {
+                float2(-1,-1), float2( 1,-1), float2( 1, 1),
+                float2(-1,-1), float2( 1, 1), float2(-1, 1)
             };
 
-            StructuredBuffer<Point> points;
-            float4                  _Color;
+            Varyings vert (Attributes IN)
+            {
+                Constraint seg = _Constraints[IN.instanceID];
 
-            struct Attributes
-            {
-                uint vertexID : SV_VertexID;
-            };
-            struct Varyings
-            {
-                float4 positionCS : SV_POSITION;
-                float4 color      : COLOR;
-            };
+                float2 pA = _Points[seg.iA].pos;
+                float2 pB = _Points[seg.iB].pos;
 
-            Varyings vert(Attributes IN)
-            {
+                // world positions (z = 0)
+                float3 A = float3(pA, 0);
+                float3 B = float3(pB, 0);
+
+                // tangent & billboard basis
+                float3 T = normalize(B - A);              // along the segment
+                float3 V = GetWorldSpaceViewDir(0.5*(A+B)); // camera→segment
+                float3 R = normalize(cross(T, V));        // right vector
+
+                // pick corner, offset by thickness
+                float2 c = corner[IN.vertexID];
+                float3 worldPos = (c.x * R + c.y * T) * _Thickness +    // thickness & along
+                                  (c.y > 0 ? B : A);                    // anchor to ends
+
                 Varyings OUT;
-                Point p = points[IN.vertexID];
-
-                // 2D → world (z=0)
-                float3 worldPos = float3(p.position, 0);
-                // URP helper: world→clip
-                OUT.positionCS = TransformWorldToHClip(worldPos);
-                OUT.color      = _Color;
+                OUT.posCS = TransformWorldToHClip(worldPos);
+                OUT.uv    = float2(c.y > 0, c.x > 0);     // simple strip UVs
+                OUT.color = _Color;
                 return OUT;
             }
 
-            half4 frag(Varyings IN) : SV_Target
+            half4 frag (Varyings IN) : SV_Target
             {
-                return IN.color;
+                half4 col = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, IN.uv) * IN.color;
+                return col;
             }
             ENDHLSL
         }
     }
 }
+
 

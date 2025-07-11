@@ -58,7 +58,7 @@ void Integrate(uint id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void Constrain(uint id : SV_DispatchThreadID)
 {
-    int cid = 0;
+    uint cid = 0;
 
     if (evenPass == 0)
     {

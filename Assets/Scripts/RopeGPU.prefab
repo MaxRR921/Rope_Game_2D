@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &161753815920362850
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 457789417761669551}
+  - component: {fileID: 4325203469892498196}
+  m_Layer: 0
+  m_Name: RopeGPU
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &457789417761669551
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 161753815920362850}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.04, z: 0.0018548514}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4325203469892498196
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 161753815920362850}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49f1952471325b641ae9d6e71b847df9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  compute: {fileID: 7200000, guid: becf57677b999e44180b71be154ee108, type: 3}
+  numPoints: 100
+  numConstraints: 99
+  gravity: {x: 0, y: -1}
+  constraintPasses: 29
+  airFriction: 0.999
+  rootObj: {fileID: 457789417761669551}
+  ropeMaterial: {fileID: 2100000, guid: d5951fb08dd4e0243a2cabfab608a83d, type: 2}
+  ropeColor: {r: 0.9960785, g: 0.9960785, b: 0.9960785, a: 1}
+  thickness: 0.2
+  pinnedObjs:
+  - {fileID: 0}

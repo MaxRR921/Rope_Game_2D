@@ -25,30 +25,40 @@ public class RopeGPU : MonoBehaviour
     [Tooltip("Color of the rope")]
     public Color ropeColor = Color.white;
 
-    ComputeBuffer pointBuffer, constraintBuffer, debugBuffer, pinBuffer;
+    public ComputeBuffer pointBuffer, constraintBuffer, debugBuffer, pinBuffer;
     Point[] points;
     Constraint[] constraints;
 
+    public float thickness = 1.0f;
+
     public 
     List<GameObject> pinnedObjs;
-
+    
     Vector2[] pinPositions;
+    uint[] pinIds;
     float[] debugs;
     int frameCount;
 
     int integrateK, constrainK;
+    public static readonly List<RopeGPU> Ropes = new List<RopeGPU>();
 
+    void OnEnable() => Ropes.Add(this);       // register this instance
+    void OnDisable() => Ropes.Remove(this);    // deregister (editor & runtime)
+    
     void Start()
     {
+        compute = Instantiate(compute);
+        ropeMaterial = Instantiate(ropeMaterial);
         // find kernels
         integrateK = compute.FindKernel("Integrate");
         constrainK = compute.FindKernel("Constrain");
-
+        
         // allocate + init
         points = new Point[numPoints];
         constraints = new Constraint[numConstraints];
         debugs = new float[numPoints];
         pinPositions = new Vector2[numPoints];
+
         float spacing = .1f;
 
 
@@ -113,7 +123,7 @@ public class RopeGPU : MonoBehaviour
 
         compute.SetFloats("gravity", gravity.x, gravity.y);
         compute.SetFloat("airFriction", airFriction);
-        ropeMaterial.SetBuffer("points", pointBuffer);
+        ropeMaterial.SetBuffer("_Points", pointBuffer);
         ropeMaterial.SetColor("_Color", ropeColor);
 
         frameCount = 0;
@@ -181,12 +191,14 @@ public class RopeGPU : MonoBehaviour
     }
     void OnRenderObject()
     {
-        ropeMaterial.SetBuffer("points", pointBuffer);
+        ropeMaterial.SetBuffer("_Points", pointBuffer);
+        ropeMaterial.SetBuffer("_Constraints", constraintBuffer);
+        ropeMaterial.SetFloat("_Thickness", thickness);
         ropeMaterial.SetColor("_Color", ropeColor);
+        ropeMaterial.SetPass(0);                // <--- bind “ForwardRope”
 
-        ropeMaterial.SetPass(0);
         // draw one line strip of `numPoints` verts
-        Graphics.DrawProceduralNow(MeshTopology.LineStrip, numPoints);
+        Graphics.DrawProceduralNow(MeshTopology.Triangles, 6,  numConstraints);
     }
 
     void OnDestroy()
