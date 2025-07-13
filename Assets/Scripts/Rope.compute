@@ -8,6 +8,7 @@ struct Point
     float2 prevPosition;
     float friction;
     int isFixed;
+    uint pinID;
 };
 
 struct Constraint
@@ -49,8 +50,8 @@ void Integrate(uint id : SV_DispatchThreadID)
     }
     else
     {
-        p.position = pinPositions[id];
-        p.prevPosition = pinPositions[id];
+        p.position = pinPositions[p.pinID];
+        p.prevPosition = pinPositions[p.pinID];
         points[id] = p;
     }
 }

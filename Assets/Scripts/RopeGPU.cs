@@ -6,8 +6,13 @@ using System.Collections.Generic;
 
 public class RopeGPU : MonoBehaviour
 {
-    struct Point { public Vector2 position, prevPosition; public float friction; public int isFixed; }
+    struct Point { public Vector2 position, prevPosition; public float friction; public int isFixed; public uint pinID;  }
     struct Constraint { public int idxA, idxB; public float restLength; }
+    public struct pinnableOBJ { public Vector2 pos; public int id; }
+
+    public GameObject hipClip;
+    
+
 
     [Header("Compute Settings")]
     public ComputeShader compute;
@@ -31,11 +36,10 @@ public class RopeGPU : MonoBehaviour
 
     public float thickness = 1.0f;
 
-    public 
-    List<GameObject> pinnedObjs;
+    public List<GameObject> pinnableObjs;
     
-    Vector2[] pinPositions;
-    uint[] pinIds;
+    pinnableOBJ[] pinPositions;
+
     float[] debugs;
     int frameCount;
 
@@ -44,6 +48,9 @@ public class RopeGPU : MonoBehaviour
 
     void OnEnable() => Ropes.Add(this);       // register this instance
     void OnDisable() => Ropes.Remove(this);    // deregister (editor & runtime)
+
+
+    
     
     void Start()
     {
@@ -57,7 +64,7 @@ public class RopeGPU : MonoBehaviour
         points = new Point[numPoints];
         constraints = new Constraint[numConstraints];
         debugs = new float[numPoints];
-        pinPositions = new Vector2[numPoints];
+        pinPositions = new pinnableOBJ[pinnableObjs.Count];
 
         float spacing = .1f;
 
@@ -69,8 +76,21 @@ public class RopeGPU : MonoBehaviour
             points[i].prevPosition = points[i].position;
             points[i].friction = 0.999999f;
             points[i].isFixed = (i == 0) ? 1 : 0;
+            points[i].pinID = 0xFFFFFFFFu;      // default “not pinned”
             Debug.Log("point " + i + "is " + points[i].isFixed + "fixed");
         }
+
+        for (int i = 0; i < pinnableObjs.Count; i++)
+        {
+            pinPositions[i].pos = new Vector2(pinnableObjs[i].transform.position.x, pinnableObjs[i].transform.position.y);
+            pinPositions[i].id = i;
+            Debug.Log("ID: " + pinPositions[i].id + " Positions: " + pinPositions[i].pos);
+        }
+        points[0].isFixed = 1;
+        points[0].pinID = 0;
+        points[90].isFixed = 1;
+        points[90].pinID = 1;
+
 
         for (int i = 0; i < numConstraints; i++)
         {
@@ -87,13 +107,14 @@ public class RopeGPU : MonoBehaviour
         }
 
         // create GPU buffers
-        int pStride = sizeof(float) * 2 * 2 + sizeof(float) + sizeof(int);
+        int pStride = sizeof(float) * 2 * 2 + sizeof(float) + sizeof(int) + sizeof(uint);
         int cStride = sizeof(int) * 2 + sizeof(float);
+        int pinStride = sizeof(float) * 2 + sizeof(int);
 
         debugBuffer = new ComputeBuffer(numPoints, sizeof(float));
         pointBuffer = new ComputeBuffer(numPoints, pStride);
         constraintBuffer = new ComputeBuffer(numConstraints, cStride);
-        pinBuffer = new ComputeBuffer(numPoints, (sizeof(float) * 2));
+        pinBuffer = new ComputeBuffer(numPoints, pinStride);
         pointBuffer.SetData(points);
         constraintBuffer.SetData(constraints);
         debugBuffer.SetData(debugs);
@@ -136,9 +157,9 @@ public class RopeGPU : MonoBehaviour
 
         //OTHER LOGIC 
 
-        for (int i = 0; i < pinnedObjs.Count; i++)
+        for (int i = 0; i < pinnableObjs.Count; i++)
         {
-            pinPositions[i] = new Vector2(pinnedObjs[i].transform.position.x, pinnedObjs[i].transform.position.y);
+            pinPositions[i].pos = new Vector2(pinnableObjs[i].transform.position.x, pinnableObjs[i].transform.position.y);
 
         }
         pinBuffer.SetData(pinPositions);

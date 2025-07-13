@@ -27,7 +27,7 @@
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             // ── data coming from C# ────────────────────────────────────────────
-            struct Point      { float2 pos; float2 prev; float  fric; int fix; };
+            struct Point      { float2 pos; float2 prev; float  fric; int fix; uint pinID; };
             struct Constraint { int    iA;  int    iB;  float  rest; };
 
             StructuredBuffer<Point>      _Points;
